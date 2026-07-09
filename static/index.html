@@ -5,28 +5,115 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>xbattle</title>
 <style>
-  body { background: rgb(192,192,192); font-family: monospace; margin: 0;
-         display: flex; flex-direction: column; align-items: center; }
-  h1 { margin: 16px 0 4px; }
-  #status { margin: 8px; min-height: 1.2em; }
-  #board { display: none; cursor: crosshair; }
-  #join input { font: inherit; padding: 4px; }
-  #join button, #again { font: inherit; padding: 4px 12px; }
-  #again { display: none; margin: 8px; }
-  .p0 { color: rgb(255,0,0); }
-  .p1 { color: rgb(0,140,120); }
+/* lab1702 design tokens (terminal phosphor) — board canvas keeps original
+   xbattle colors and is intentionally untouched by the design system. */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+:root {
+  --bg-0: oklch(0.15 0.010 100);
+  --bg-1: oklch(0.18 0.012 100);
+  --bg-2: oklch(0.22 0.014 100);
+  --fg-1: oklch(0.92 0.020 95);
+  --fg-2: oklch(0.70 0.020 95);
+  --fg-3: oklch(0.52 0.018 95);
+  --amber: oklch(0.80 0.16 75);
+  --amber-dim: oklch(0.68 0.13 75);
+  --amber-glow: oklch(0.80 0.16 75 / 0.18);
+  --amber-hover: oklch(0.88 0.14 78);
+  --on-accent: oklch(0.17 0.02 75);
+  --green: oklch(0.80 0.16 145);
+  --border-1: oklch(0.32 0.018 100);
+  --border-2: oklch(0.42 0.020 100);
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, sans-serif;
+  --tracking-label: 0.08em;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --shadow-card: 0 1px 0 oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.35);
+  --scanlines: repeating-linear-gradient(to bottom,
+    transparent 0px, transparent 2px,
+    oklch(0 0 0 / 0.12) 2px, oklch(0 0 0 / 0.12) 3px);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; background: var(--bg-0); color: var(--fg-1);
+  font: 400 14px/1.6 var(--font-sans);
+  display: flex; flex-direction: column; align-items: center;
+}
+::selection { background: oklch(0.80 0.16 75 / 0.25); }
+
+header {
+  width: 100%; padding: 12px 24px; background: var(--bg-1) var(--scanlines);
+  border-bottom: 1px solid var(--border-1);
+  font-family: var(--font-mono); font-size: 12.5px;
+}
+header .brand { color: var(--fg-2); font-weight: 600; }
+header .brand b { color: var(--amber); font-weight: 600; }
+header .app { color: var(--fg-1); font-weight: 600; }
+
+main { display: flex; flex-direction: column; align-items: center; padding: 32px 16px; gap: 16px; }
+h1 { margin: 0; font: 600 26px/1.15 var(--font-mono); letter-spacing: -0.01em; }
+
+#status { font-family: var(--font-mono); font-size: 12.5px; color: var(--fg-2);
+          min-height: 36px; display: flex; align-items: center; gap: 8px; }
+.p0 { color: rgb(255,80,80); }   /* board red, lifted for dark bg legibility */
+.p1 { color: rgb(100,255,210); } /* board cyan */
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 999px;
+       background: currentColor; box-shadow: 0 0 6px currentColor; vertical-align: 1px; }
+.cursor { color: var(--amber); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+#join { display: flex; flex-direction: column; gap: 6px; width: 280px;
+        background: var(--bg-1); border: 1px solid var(--border-1);
+        border-radius: 4px; box-shadow: var(--shadow-card); padding: 24px; }
+#join label { font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+              text-transform: uppercase; letter-spacing: var(--tracking-label);
+              color: var(--fg-2); }
+input {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--fg-1);
+  background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 2px;
+  height: 36px; padding: 0 10px; width: 100%;
+  transition: border-color 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+input::placeholder { color: var(--fg-3); }
+input:hover { border-color: var(--border-2); }
+input:focus { outline: none; border-color: var(--amber-dim); box-shadow: 0 0 8px var(--amber-glow); }
+
+button {
+  font-family: var(--font-mono); font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.02em; height: 36px; padding: 0 14px; margin-top: 10px;
+  background: var(--amber); color: var(--on-accent);
+  border: 1px solid var(--amber); border-radius: 2px; cursor: pointer;
+  transition: background 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+button:hover { background: var(--amber-hover); border-color: var(--amber-hover);
+               box-shadow: 0 0 12px var(--amber-glow); }
+button:active { background: var(--amber-dim); box-shadow: none; }
+button:focus-visible { outline: none;
+  box-shadow: 0 0 0 1px var(--bg-0), 0 0 0 3px var(--amber); }
+
+/* board card: lab1702 frame, original xbattle pixels inside */
+#boardcard { display: none; background: var(--bg-1); border: 1px solid var(--border-1);
+             border-radius: 4px; box-shadow: var(--shadow-card); padding: 16px; }
+#board { display: block; cursor: crosshair; }
+#hint { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); }
+#again { display: none; }
 </style>
 </head>
 <body>
+<header><span class="brand">lab<b>1702</b></span> <span style="color:var(--fg-3)">/</span> <span class="app">xbattle</span></header>
+<main>
 <h1>xbattle</h1>
 <div id="status">
   <form id="join">
-    <input id="name" placeholder="your name" maxlength="24" required autofocus>
+    <label for="name">your name</label>
+    <input id="name" placeholder="player one" maxlength="24" required autofocus autocomplete="off">
     <button>join queue</button>
   </form>
 </div>
-<canvas id="board"></canvas>
+<div id="boardcard"><canvas id="board"></canvas></div>
+<div id="hint" hidden>left-click: toggle direction &middot; corner: two &middot; center: clear &middot; right-click: force</div>
 <button id="again" onclick="location.reload()">play again</button>
+</main>
 <script>
 "use strict";
 // Geometry from the original (shape_square.c / shape.c): 45px cells, grid on
@@ -46,34 +133,37 @@ const R_MIN = Math.max(5, 0.2 * HALF), R_MAX = 0.85 * HALF;
 let W = 15, H = 15, MAXVAL = 20, side = 0, names = ["", ""], cells = null;
 const canvas = document.getElementById("board"), ctx = canvas.getContext("2d");
 const status = document.getElementById("status");
+const chip = (s, txt) => `<span class="p${s}"><span class="dot"></span> ${txt}</span>`;
 
 const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://")
                          + location.host + "/ws");
 document.getElementById("join").onsubmit = e => {
   e.preventDefault();
   ws.send(JSON.stringify({join: document.getElementById("name").value}));
-  status.textContent = "connecting...";
+  status.innerHTML = 'connecting <span class="cursor">▊</span>';
 };
 
 ws.onmessage = e => {
   const m = JSON.parse(e.data);
-  if (m.wait) status.textContent = "waiting for an opponent...";
+  if (m.wait)
+    status.innerHTML = 'waiting for an opponent <span class="cursor">▊</span>';
   if (m.start) {
     ({side, names, w: W, h: H, maxval: MAXVAL} = m.start);
     canvas.width = W * PITCH + 1; canvas.height = H * PITCH + 1;
-    canvas.style.display = "block";
-    status.innerHTML = `<span class="p0">${esc(names[0])}</span> vs ` +
-      `<span class="p1">${esc(names[1])}</span> — you are ` +
-      `<span class="p${side}">${esc(names[side])}</span>. ` +
-      `left-click: toggle direction &middot; corner: two &middot; ` +
-      `center: clear &middot; right-click: set only that direction`;
+    document.getElementById("boardcard").style.display = "block";
+    document.getElementById("hint").hidden = false;
+    status.innerHTML = `${chip(0, esc(names[0]))} vs ${chip(1, esc(names[1]))}` +
+      ` <span style="color:var(--fg-3)">&middot;</span> you are ` +
+      `<span class="p${side}">${esc(names[side])}</span>`;
   }
   if (m.state) { cells = m.state; render(); }
   if (m.end) {
     const e2 = m.end;
     status.innerHTML = e2.winner < 0 ? "mutual destruction — draw"
-      : `<span class="p${e2.winner}">${esc(names[e2.winner])}</span> wins ` +
-        `(${e2.reason})` + (e2.winner === side ? " — victory!" : " — defeat.");
+      : `${chip(e2.winner, esc(names[e2.winner]))} wins (${e2.reason})` +
+        (e2.winner === side
+          ? ' <span style="color:var(--green)">✓ victory</span>'
+          : ' <span style="color:var(--fg-3)">× defeat</span>');
     document.getElementById("again").style.display = "block";
     ws.close();
   }
