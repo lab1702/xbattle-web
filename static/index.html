@@ -93,9 +93,9 @@ function render() {
     ctx.strokeStyle = GRID;
     ctx.strokeRect(px + .5, py + .5, PITCH, PITCH);
     const cx = px + PITCH / 2 + .5, cy = py + PITCH / 2 + .5;
-    if (c.g > 0) town(cx, cy, c);
     if (c.s === 2) fight(cx, cy, c);
     else if (c.s >= 0 && c.v[c.s] > 0) token(cx, cy, c.s, c.v[c.s]);
+    if (c.g > 0) town(cx, cy, c); // ring stays visible over the troop token
     if (c.d) arrows(cx, cy, c);
   }
 }
@@ -140,16 +140,19 @@ function arrows(cx, cy, c) {
   const owner = c.s === 2 ? c.o : c.s;
   if (owner !== 0 && owner !== 1) return;
   const len = (c.v[owner] > 0 ? HALF : HALF / 2) - 1;
-  ctx.strokeStyle = HUES[owner];
-  ctx.lineWidth = 2;
-  for (let d = 0; d < 4; d++) {
-    if (!(c.d & (1 << d))) continue;
-    const [dx, dy] = DIRV[d], tx = cx + dx * len, ty = cy + dy * len;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy); ctx.lineTo(tx, ty);
-    ctx.moveTo(tx, ty); ctx.lineTo(tx - dx * 6 - dy * 4, ty - dy * 6 - dx * 4);
-    ctx.moveTo(tx, ty); ctx.lineTo(tx - dx * 6 + dy * 4, ty - dy * 6 + dx * 4);
-    ctx.stroke();
+  // inverse-hue under-stroke keeps arrows visible over own troops (draw.c:700)
+  for (const [hue, w] of [[INV[owner], 4], [HUES[owner], 2]]) {
+    ctx.strokeStyle = hue;
+    ctx.lineWidth = w;
+    for (let d = 0; d < 4; d++) {
+      if (!(c.d & (1 << d))) continue;
+      const [dx, dy] = DIRV[d], tx = cx + dx * len, ty = cy + dy * len;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy); ctx.lineTo(tx, ty);
+      ctx.moveTo(tx, ty); ctx.lineTo(tx - dx * 6 - dy * 4, ty - dy * 6 - dx * 4);
+      ctx.moveTo(tx, ty); ctx.lineTo(tx - dx * 6 + dy * 4, ty - dy * 6 + dx * 4);
+      ctx.stroke();
+    }
   }
   ctx.lineWidth = 1;
 }

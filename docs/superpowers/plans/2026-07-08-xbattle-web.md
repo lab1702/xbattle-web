@@ -36,8 +36,8 @@ one goroutine per game owns all board state (channel-fed, lock-free) and ticks e
 ### Task 1: Engine (`game.go` + `game_test.go`)
 
 **Produces:** the API above; board serialization method `(*Board).Snapshot() []CellState`
-(x omitted — index = y*W+x; fields: side int8, level int8, growth uint8, val [2]uint8,
-dirs [2][4]bool).
+(x omitted — index = y*W+x; fields: side, old-side, level, growth, val [2]int,
+dir bitmask uint8).
 
 - [ ] Write failing tests for: 1-dir move = surplus/3; 2-dir split /2; dest cap at 20;
       sea blocked; enemy entry → FIGHT holding both values; attrition kills outnumbered
