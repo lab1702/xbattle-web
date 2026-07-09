@@ -57,31 +57,21 @@ func matchmaker() {
 			p.conn.WriteJSON(map[string]any{"wait": true})
 			continue
 		}
+		alive := true
 		select {
-		case <-drained(waiting.cmds): // waiter disconnected while queued
+		case _, ok := <-waiting.cmds: // early cmds are meaningless pre-game, drop
+			alive = ok
+		default:
+		}
+		if !alive { // waiter disconnected while queued
 			waiting.conn.Close()
 			waiting = p
 			p.conn.WriteJSON(map[string]any{"wait": true})
-		default:
-			go runGame([2]*player{waiting, p})
-			waiting = nil
+			continue
 		}
+		go runGame([2]*player{waiting, p})
+		waiting = nil
 	}
-}
-
-// drained returns a channel that is readable iff p.cmds is closed (reader
-// exited). Non-destructive: only ever receives the zero value after close.
-func drained(cmds chan cmdMsg) <-chan struct{} {
-	done := make(chan struct{})
-	select {
-	case _, ok := <-cmds:
-		if !ok {
-			close(done)
-		}
-		// a queued player has no board yet; any early cmd is meaningless, drop it
-	default:
-	}
-	return done
 }
 
 // runGame owns the board for its whole life. Sole writer: no locks.
