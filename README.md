@@ -33,3 +33,11 @@ are ported from the original C source — see
 `docs/superpowers/specs/2026-07-08-xbattle-web-design.md` for the mapping
 with file:line references, and `go test ./...` for the rule checks plus a
 2000-concurrent-game load test.
+
+## License
+
+This is a derivative of xbattle, Copyright (C) 1995 Steve Lehar and Greg
+Lesher, whose unmodified source is included in `xbattle-5.4.1/`. The whole
+repository is distributed under the same terms — see
+[xbattle-5.4.1/COPYRIGHT](xbattle-5.4.1/COPYRIGHT). The web port
+(`*.go`, `static/`) was written in 2026.
