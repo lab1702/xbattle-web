@@ -14,6 +14,23 @@ Open http://localhost:8086 in two browsers, enter names, play.
 
 For local development (needs Go 1.26): `go run .`
 
+### Behind a reverse proxy
+
+The page resolves its websocket URL relative to its own path, so it can be
+mounted at any subpath as long as the proxy strips the prefix. Caddy:
+
+```
+example.com {
+    redir /xbattle /xbattle/
+    handle_path /xbattle/* {
+        reverse_proxy localhost:8086
+    }
+}
+```
+
+The `redir` matters: without the trailing slash the browser would resolve
+the websocket URL against `/` instead of `/xbattle/`.
+
 ## Play
 
 - Troops flow along direction vectors, ~⅓ of a cell's troops per direction

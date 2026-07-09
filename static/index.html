@@ -135,8 +135,10 @@ const canvas = document.getElementById("board"), ctx = canvas.getContext("2d");
 const status = document.getElementById("status");
 const chip = (s, txt) => `<span class="p${s}"><span class="dot"></span> ${txt}</span>`;
 
-const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://")
-                         + location.host + "/ws");
+// resolve "ws" relative to the page so a reverse proxy can mount us at any subpath
+const wsURL = new URL("ws", location.href);
+wsURL.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+const ws = new WebSocket(wsURL);
 document.getElementById("join").onsubmit = e => {
   e.preventDefault();
   ws.send(JSON.stringify({join: document.getElementById("name").value}));
