@@ -90,6 +90,12 @@ button:active { background: var(--amber-dim); box-shadow: none; }
 button:focus-visible { outline: none;
   box-shadow: 0 0 0 1px var(--bg-0), 0 0 0 3px var(--amber); }
 
+#howto { margin: 14px 0 0; padding: 12px 0 0 16px; border-top: 1px solid var(--border-1);
+         font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7;
+         color: var(--fg-2); }
+#howto li + li { margin-top: 4px; }
+#howto li::marker { color: var(--fg-3); }
+
 /* board card: lab1702 frame, original xbattle pixels inside */
 #boardcard { display: none; background: var(--bg-1); border: 1px solid var(--border-1);
              border-radius: 4px; box-shadow: var(--shadow-card); padding: 16px; }
@@ -108,6 +114,13 @@ button:focus-visible { outline: none;
     <label for="name">your name</label>
     <input id="name" placeholder="player one" maxlength="24" required autofocus autocomplete="off">
     <button>join queue</button>
+    <ul id="howto">
+      <li>troops flow along arrows each tick; cells hold up to 20</li>
+      <li>left-click a cell edge to toggle its arrow, a corner for two, the center to clear</li>
+      <li>right-click sets exactly that arrow</li>
+      <li>rings are towns — hold them to produce troops; blue sea is impassable</li>
+      <li>wipe out the enemy to win; disconnecting forfeits</li>
+    </ul>
   </form>
 </div>
 <div id="boardcard"><canvas id="board"></canvas></div>
