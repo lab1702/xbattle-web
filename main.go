@@ -179,6 +179,6 @@ func main() {
 	http.Handle("/", http.FileServer(http.FS(static)))
 	http.HandleFunc("/ws", serveWS)
 	go matchmaker()
-	log.Println("xbattle-web listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("xbattle-web listening on :8086")
+	log.Fatal(http.ListenAndServe(":8086", nil))
 }

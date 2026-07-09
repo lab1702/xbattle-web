@@ -10,7 +10,7 @@ accounts, no persistence — a finished game's data is gone.
 docker compose up
 ```
 
-Open http://localhost:8080 in two browsers, enter names, play.
+Open http://localhost:8086 in two browsers, enter names, play.
 
 For local development (needs Go 1.26): `go run .`
 
