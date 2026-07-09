@@ -285,6 +285,7 @@ func (b *Board) AliveSides() (alive [2]bool) {
 // index = y*BoardW + x.
 type CellState struct {
 	S int8   `json:"s"`           // side: -1 none, 0, 1, 2 fight
+	O int8   `json:"o"`           // pre-fight owner (arrows' color while contested)
 	L int8   `json:"l"`           // level (<0 sea)
 	G uint8  `json:"g"`           // growth
 	V [2]int `json:"v"`           // troops per side
@@ -301,7 +302,7 @@ func (b *Board) Snapshot() []CellState {
 				mask |= 1 << d
 			}
 		}
-		out[i] = CellState{S: c.Side, L: c.Level, G: c.Growth, V: c.Val, D: mask}
+		out[i] = CellState{S: c.Side, O: c.OldSide, L: c.Level, G: c.Growth, V: c.Val, D: mask}
 	}
 	return out
 }

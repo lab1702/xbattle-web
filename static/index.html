@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xbattle</title>
+<style>
+  body { background: rgb(192,192,192); font-family: monospace; margin: 0;
+         display: flex; flex-direction: column; align-items: center; }
+  h1 { margin: 16px 0 4px; }
+  #status { margin: 8px; min-height: 1.2em; }
+  #board { display: none; cursor: crosshair; }
+  #join input { font: inherit; padding: 4px; }
+  #join button, #again { font: inherit; padding: 4px 12px; }
+  #again { display: none; margin: 8px; }
+  .p0 { color: rgb(255,0,0); }
+  .p1 { color: rgb(0,140,120); }
+</style>
+</head>
+<body>
+<h1>xbattle</h1>
+<div id="status">
+  <form id="join">
+    <input id="name" placeholder="your name" maxlength="24" required autofocus>
+    <button>join queue</button>
+  </form>
+</div>
+<canvas id="board"></canvas>
+<button id="again" onclick="location.reload()">play again</button>
+<script>
+"use strict";
+// Geometry from the original (shape_square.c / shape.c): 45px cells, grid on
+// -> 44px pitch, direction indices 0=up 1=left 2=down 3=right.
+const CELL = 45, PITCH = 44, HALF = 21;      // HALF = circle_bound
+const DEAD2 = 2 * 5 * 5;                     // center dead-zone r^2 (shape.c:613)
+const LAND = "rgb(210,220,150)", SEA = "rgb(70,132,200)";
+const GRID = "rgb(0,0,0)";
+const HUES = ["rgb(255,0,0)", "rgb(100,255,210)"];         // red, cyan (parse.h)
+const INV  = ["rgb(0,255,255)", "rgb(155,0,45)"];          // inverse hues
+// troop token size: linear min->max over 1..maxval (shape.c:448)
+const T_MIN = Math.max(2, 0.05 * 2 * HALF);
+const T_MAX = Math.min(0.90 * 2 * HALF, 2 * HALF - 4);
+// town ring radius: linear over growth 50..100 (shape.c:392)
+const R_MIN = Math.max(5, 0.2 * HALF), R_MAX = 0.85 * HALF;
+
+let W = 15, H = 15, MAXVAL = 20, side = 0, names = ["", ""], cells = null;
+const canvas = document.getElementById("board"), ctx = canvas.getContext("2d");
+const status = document.getElementById("status");
+
+const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://")
+                         + location.host + "/ws");
+document.getElementById("join").onsubmit = e => {
+  e.preventDefault();
+  ws.send(JSON.stringify({join: document.getElementById("name").value}));
+  status.textContent = "connecting...";
+};
+
+ws.onmessage = e => {
+  const m = JSON.parse(e.data);
+  if (m.wait) status.textContent = "waiting for an opponent...";
+  if (m.start) {
+    ({side, names, w: W, h: H, maxval: MAXVAL} = m.start);
+    canvas.width = W * PITCH + 1; canvas.height = H * PITCH + 1;
+    canvas.style.display = "block";
+    status.innerHTML = `<span class="p0">${esc(names[0])}</span> vs ` +
+      `<span class="p1">${esc(names[1])}</span> — you are ` +
+      `<span class="p${side}">${esc(names[side])}</span>. ` +
+      `left-click: toggle direction &middot; corner: two &middot; ` +
+      `center: clear &middot; right-click: set only that direction`;
+  }
+  if (m.state) { cells = m.state; render(); }
+  if (m.end) {
+    const e2 = m.end;
+    status.innerHTML = e2.winner < 0 ? "mutual destruction — draw"
+      : `<span class="p${e2.winner}">${esc(names[e2.winner])}</span> wins ` +
+        `(${e2.reason})` + (e2.winner === side ? " — victory!" : " — defeat.");
+    document.getElementById("again").style.display = "block";
+    ws.close();
+  }
+};
+ws.onclose = () => {
+  if (!document.getElementById("again").offsetParent && !cells)
+    status.textContent = "connection lost — reload to retry";
+};
+const esc = s => s.replace(/[&<>"]/g, c =>
+  ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+function render() {
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = cells[y * W + x], px = x * PITCH, py = y * PITCH;
+    ctx.fillStyle = c.l < 0 ? SEA : LAND;
+    ctx.fillRect(px, py, CELL, CELL);
+    ctx.strokeStyle = GRID;
+    ctx.strokeRect(px + .5, py + .5, PITCH, PITCH);
+    const cx = px + PITCH / 2 + .5, cy = py + PITCH / 2 + .5;
+    if (c.g > 0) town(cx, cy, c);
+    if (c.s === 2) fight(cx, cy, c);
+    else if (c.s >= 0 && c.v[c.s] > 0) token(cx, cy, c.s, c.v[c.s]);
+    if (c.d) arrows(cx, cy, c);
+  }
+}
+
+const tsize = v => T_MIN + (T_MAX - T_MIN) / MAXVAL * (v - 1);
+
+function token(cx, cy, s, v) {
+  const t = tsize(v);
+  ctx.fillStyle = HUES[s];
+  ctx.fillRect(cx - t / 2, cy - t / 2, t, t);
+}
+
+// contested cell: both tokens concentric (larger behind) + battle X (draw.c:472)
+function fight(cx, cy, c) {
+  const big = c.v[0] >= c.v[1] ? 0 : 1;
+  if (c.v[big]) token(cx, cy, big, c.v[big]);
+  if (c.v[1 - big]) token(cx, cy, 1 - big, c.v[1 - big]);
+  ctx.lineWidth = 2;
+  for (const [s, dx] of [[0, -1], [1, 1]]) {
+    ctx.strokeStyle = HUES[s];
+    ctx.beginPath();
+    ctx.moveTo(cx + dx * HALF * .8, cy - HALF * .8);
+    ctx.lineTo(cx - dx * HALF * .8, cy + HALF * .8);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 1;
+}
+
+// town/base: 2px ring, radius linear in growth over [50,100] (draw.c:548)
+function town(cx, cy, c) {
+  const g = Math.min(Math.max(c.g, 50), 100);
+  const r = R_MIN + (R_MAX - R_MIN) * (g - 50) / 50;
+  ctx.strokeStyle = c.s === 0 || c.s === 1 ? INV[c.s] : GRID;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.stroke();
+  ctx.lineWidth = 1;
+}
+
+// direction arrows: shaft + two barbs, half length when cell empty (draw.c:662)
+const DIRV = [[0, -1], [-1, 0], [0, 1], [1, 0]]; // 0=up 1=left 2=down 3=right
+function arrows(cx, cy, c) {
+  const owner = c.s === 2 ? c.o : c.s;
+  if (owner !== 0 && owner !== 1) return;
+  const len = (c.v[owner] > 0 ? HALF : HALF / 2) - 1;
+  ctx.strokeStyle = HUES[owner];
+  ctx.lineWidth = 2;
+  for (let d = 0; d < 4; d++) {
+    if (!(c.d & (1 << d))) continue;
+    const [dx, dy] = DIRV[d], tx = cx + dx * len, ty = cy + dy * len;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy); ctx.lineTo(tx, ty);
+    ctx.moveTo(tx, ty); ctx.lineTo(tx - dx * 6 - dy * 4, ty - dy * 6 - dx * 4);
+    ctx.moveTo(tx, ty); ctx.lineTo(tx - dx * 6 + dy * 4, ty - dy * 6 + dx * 4);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 1;
+}
+
+// click -> direction vectors, replicating the chart math in shape.c:519-618:
+// 90-degree sectors offset 45, 22.5-degree corner spans set two vectors,
+// small central dead zone clears the cell.
+function clickDirs(offX, offY) {
+  if (offX * offX + offY * offY < DEAD2) return [];
+  let ang = Math.atan2(-offY, offX) * 180 / Math.PI;      // screen y is down
+  ang = (ang - 45 + 720) % 360;
+  const sector = Math.floor(ang / 90), pos = ang % 90;
+  const dirs = [sector];
+  if (pos < 11.25) dirs.push((sector + 3) % 4);           // near lower vertex
+  else if (pos >= 78.75) dirs.push((sector + 1) % 4);     // near upper vertex
+  return dirs;
+}
+
+function handle(e, force) {
+  e.preventDefault();
+  if (!cells) return;
+  const r = canvas.getBoundingClientRect();
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  const x = Math.min(W - 1, Math.floor(px / PITCH));
+  const y = Math.min(H - 1, Math.floor(py / PITCH));
+  const ds = clickDirs(px - (x * PITCH + PITCH / 2), py - (y * PITCH + PITCH / 2));
+  const dirs = [false, false, false, false];
+  for (const d of ds) dirs[d] = true;
+  ws.send(JSON.stringify({cmd: {x, y, dirs, force: force || ds.length === 0}}));
+}
+canvas.addEventListener("click", e => handle(e, false));
+canvas.addEventListener("auxclick", e => handle(e, true));
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+</script>
+</body>
+</html>
