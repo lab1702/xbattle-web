@@ -137,7 +137,10 @@ func runGame(p [2]*player) {
 	}
 }
 
-var upgrader = websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+var upgrader = websocket.Upgrader{
+	CheckOrigin:       func(*http.Request) bool { return true },
+	EnableCompression: true,
+}
 
 // serveWS: first message must be {"join": name}; then a reader goroutine
 // forwards cmd messages to the game and closes cmds on disconnect.
